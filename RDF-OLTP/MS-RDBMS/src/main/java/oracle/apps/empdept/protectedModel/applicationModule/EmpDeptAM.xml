@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE AppModule SYSTEM "jbo_03_01.dtd">
+<!---->
+<AppModule
+  xmlns="http://xmlns.oracle.com/bc4j"
+  Name="EmpDeptAM"
+  Version="11.1.1.73.50"
+  InheritPersonalization="merge"
+  ComponentClass="oracle.apps.empdept.protectedModel.applicationModule.EmpDeptAMImpl"
+  ClearCacheOnRollback="true"
+  LoadComponentsLazily="true">
+  <DesignTime>
+    <Attr Name="_deployType" Value="0"/>
+    <Attr Name="_isCodegen" Value="true"/>
+  </DesignTime>
+  <ViewUsage
+          Name="EmpDeptVO"
+          ViewObjectName="oracle.apps.empdept.view.EmpDeptVO"/>
+  <ViewUsage
+          Name="EmloyeeVO"
+          ViewObjectName="oracle.apps.empdept.view.EmloyeeVO"/>
+  <ViewUsage
+          Name="DepartmentVO"
+          ViewObjectName="oracle.apps.empdept.view.DepartmentVO"/>
+</AppModule>

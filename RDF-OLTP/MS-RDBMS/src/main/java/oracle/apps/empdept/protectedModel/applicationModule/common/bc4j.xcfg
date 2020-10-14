@@ -1,0 +1,23 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<BC4JConfig version="11.1" xmlns="http://xmlns.oracle.com/bc4j/configuration">
+   <AppModuleConfigBag ApplicationName="oracle.apps.empdept.protectedModel.applicationModule.EmpDeptAM">
+     <AppModuleConfig
+	 name="EmpDeptAMLocal"
+	 jbo.project="oracle.apps.empdept.EmpDept"
+	 ApplicationName="oracle.apps.empdept.protectedModel.applicationModule.EmpDeptAM"
+	 DeployPlatform="LOCAL">
+         <Database jbo.TypeMapEntries="oracle.apps.fnd.applcore.oaext.typemap.OATypeMapEntries"/>
+         <Security AppModuleJndiName="oracle.apps.empdept.protectedModel.applicationModule.EmpDeptAM"/>
+         <Custom JDBCDataSource="java:comp/env/jdbc/ApplicationDBDS"/>
+      </AppModuleConfig>
+      <AppModuleConfig name="EmpDeptAMShared"
+		       jbo.project="oracle.apps.empdept.EmpDept"
+		       ApplicationName="oracle.apps.empdept.protectedModel.applicationModule.EmpDeptAM"
+		       DeployPlatform="LOCAL">
+         <AM-Pooling jbo.ampool.maxpoolsize="1" jbo.ampool.isuseexclusive="false"/>
+         <Database jbo.TypeMapEntries="oracle.apps.fnd.applcore.oaext.typemap.OATypeMapEntries"/>
+         <Security AppModuleJndiName="oracle.apps.empdept.protectedModel.applicationModule.EmpDeptAM"/>
+         <Custom JDBCDataSource="java:comp/env/jdbc/ApplicationDBDS"/>
+      </AppModuleConfig>
+   </AppModuleConfigBag>
+</BC4JConfig>

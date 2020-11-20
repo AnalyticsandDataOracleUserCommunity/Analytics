@@ -1,6 +1,7 @@
 CREATE OR REPLACE FORCE EDITIONABLE VIEW SaaS_DEPT_VIEW AS 
 SELECT /*+ dynamic_sampling(6)  */  distinct
       dept_uri 
+    , dept_id
     , deptno
     , dname 
     , loc 
@@ -14,14 +15,15 @@ FROM TABLE(SEM_MATCH(
     PREFIX   dc: <http://purl.org/dc/elements/1.1/>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
     PREFIX saas: <http://SaaS.org/>
-    SELECT ?dept_uri ?deptno ?dname ?loc ?award #VIEW_SELECT_TEMPLATE_2
+    SELECT ?dept_uri ?dept_id ?deptno ?dname ?loc ?award #VIEW_SELECT_TEMPLATE_2
     WHERE 
       {
             ?dept_uri a saas:Dept .
             ?dept_uri saas:deptno ?deptno .
+            OPTIONAL { ?dept_uri saas:dept_id ?dept_id . }
             ?dept_uri saas:dname ?dname .
-            OPTIONAL{ ?dept_uri saas:loc ?loc . } 
-            OPTIONAL{ ?dept_uri saas:award ?award . } 
+            OPTIONAL { ?dept_uri saas:loc ?loc . } 
+            OPTIONAL { ?dept_uri saas:award ?award . } 
             #VIEW_SELECT_TEMPLATE_3
       }',
     SEM_MODELS(model_param_handler.get_model_name),
@@ -31,68 +33,91 @@ FROM TABLE(SEM_MATCH(
     null,
     ' PLUS_RDFT=VC DO_UNESCAPE=T ALLOW_DUP=T ', null, null, 'rdfuser', 'mynetwork'));
 CREATE OR REPLACE EDITIONABLE TRIGGER SaaS_DEPT_VIEW_TRIGGER_INSERT 
-     INSTEAD OF insert ON SaaS_DEPT_VIEW
-     FOR EACH ROW
-DECLARE 
-    v_dept_uri varchar2(4000); 
-    v_deptno varchar2(4000);
-    --VIEW_INSERT_TEMPLATE_1
+INSTEAD OF insert ON SaaS_DEPT_VIEW
+FOR EACH ROW
 BEGIN
-    v_deptno := :new.deptno;
-    v_dept_uri := 'saas:' || 'Dept_' || v_deptno;
-    --VIEW_INSERT_TEMPLATE_2
-    sem_apis.update_model(model_param_handler.get_model_name, 
-      'PREFIX saas: <http://SaaS.org/>
-        DELETE { 
-            ?z saas:dname ?dname .
-            ?z saas:loc ?loc .
-            ?z saas:award ?award .
-            #VIEW_INSERT_TEMPLATE_3
-        }
-        WHERE {
-            OPTIONAL { { select ?x where {
-                         ?x a saas:Dept .
-                         ?x saas:deptno "' || :new.deptno || '" .
-           #VIEW_INSERT_TEMPLATE_4
-            } } }
-        FILTER( BOUND(?x))
-        OPTIONAL { { select ?y where {
-                     ?y a saas:Dept .
-                     ?y saas:deptno "' || :new.deptno || '" .
-                     ?y saas:dname "' || :new.dname || '" .
-                     ?y saas:loc "' || :new.loc || '" .
-                     ?y saas:award "' || :new.award || '" .
-           #VIEW_INSERT_TEMPLATE_5
-        } } }
-        FILTER( ! BOUND(?y))
-           ?z a saas:Dept .
-           ?z saas:deptno "' || :new.deptno || '" .
-           ?z saas:dname ?dname .
-           ?z saas:loc ?loc .
-           ?z saas:award ?award .
-           #VIEW_INSERT_TEMPLATE_6
-        };
-        INSERT { 
-            ' || v_dept_uri || ' a saas:Dept .
-            ' || v_dept_uri || ' saas:deptno "' || :new.deptno || '" .
-            ' || v_dept_uri || ' saas:dname "' || :new.dname || '" .
-            ' || v_dept_uri || ' saas:loc "' || :new.loc || '" .
-            ' || v_dept_uri || ' saas:award "' || :new.award || '" .
-            #VIEW_INSERT_TEMPLATE_7
-        }
-        WHERE {
-        OPTIONAL { { select ?y where {
-                     ?y a saas:Dept .
-                     ?y saas:deptno "' || :new.deptno || '" .
-                     ?y saas:dname "' || :new.dname || '" .
-                     ?y saas:loc "' || :new.loc || '" .
-                     ?y saas:award "' || :new.award || '" .
-           #VIEW_INSERT_TEMPLATE_8
-        } } }
-        FILTER( ! BOUND(?y))
-        } ', options=>' AUTOCOMMIT=F ', network_owner=>'rdfuser', network_name=>'mynetwork');
-END;
-/  
+        dbms_output.put_line('Starting to process the constraint checking block(s) for Dept inserts.');--VIEW_INSERT_TEMPLATE_1
+    DECLARE
+        s_dept_uri varchar2(4000);
+        v_dept_uri varchar2(4000); 
+        v_dept_id varchar2(4000);
+        v_dummy varchar2(4000); 
+        v_dname varchar2(4000);
+        v_loc varchar2(4000);
+        v_award varchar2(4000);
+        --VIEW_INSERT_TEMPLATE_2
+        BEGIN
+        dbms_output.put_line('Starting to process the main block for Dept inserts.');
+        --VIEW_INSERT_TEMPLATE_3
+        select distinct dept_uri into s_dept_uri 
+        from saas_dept_view where deptno = :new.deptno;
+     -- From the above query, if the dept doesn't exist, an exception is thrown, which means this is a new dept. The new dept is inserted using the exception code at the bottom of this block.
+     -- If no exception is thrown, do a query to get the attribute values that might need to be updated.
+        select distinct '', dname, loc, award--VIEW_INSERT_TEMPLATE_5 
+        into v_dummy, v_dname, v_loc, v_award--VIEW_INSERT_TEMPLATE_6
+        from saas_dept_view where deptno = :new.deptno;
+        --VIEW_INSERT_TEMPLATE_4
+        -- Update dname
+        IF (v_dname is null and :new.dname is not null) or (:new.dname is null and v_dname is not null) or v_dname != :new.dname then
+            insert into audit_table(id, type, attribute, old_value, new_value, update_time, updating_user_id) values (audit_id_seq.nextval, 'Dept', 'dname', v_dname, :new.dname, SYSTIMESTAMP, user);
+            sem_apis.update_model(model_param_handler.get_model_name, 
+           'PREFIX saas: <http://SaaS.org/>
+            DELETE DATA { 
+                <' || s_dept_uri || '> saas:dname  "' || v_dname || '".
+            };
+            INSERT DATA { 
+                <' || s_dept_uri || '> saas:dname  "' || nvl(:new.dname, '') || '".
+            }
+            ', options=>' AUTOCOMMIT=F ', network_owner=>'rdfuser', network_name=>'mynetwork');
+        END IF;
+        -- Update loc
+        IF (v_loc is null and :new.loc is not null) or (:new.loc is null and v_loc is not null) or v_loc != :new.loc then
+            insert into audit_table(id, type, attribute, old_value, new_value, update_time, updating_user_id) values (audit_id_seq.nextval, 'Dept', 'loc', v_loc, :new.loc, SYSTIMESTAMP, user);
+            sem_apis.update_model(model_param_handler.get_model_name, 
+           'PREFIX saas: <http://SaaS.org/>
+            DELETE DATA { 
+                <' || s_dept_uri || '> saas:loc  "' || v_loc || '".
+            };
+            INSERT DATA { 
+                <' || s_dept_uri || '> saas:loc  "' || nvl(:new.loc, '') || '".
+            }
+            ', options=>' AUTOCOMMIT=F ', network_owner=>'rdfuser', network_name=>'mynetwork');
+        END IF;
+        -- Update award
+        IF (v_award is null and :new.award is not null) or (:new.award is null and v_award is not null) or v_award != :new.award then
+            insert into audit_table(id, type, attribute, old_value, new_value, update_time, updating_user_id) values (audit_id_seq.nextval, 'Dept', 'award', v_award, :new.award, SYSTIMESTAMP, user);
+            sem_apis.update_model(model_param_handler.get_model_name, 
+           'PREFIX saas: <http://SaaS.org/>
+            DELETE DATA { 
+                <' || s_dept_uri || '> saas:award  "' || v_award || '".
+            };
+            INSERT DATA { 
+                <' || s_dept_uri || '> saas:award  "' || nvl(:new.award, '') || '".
+            }
+            ', options=>' AUTOCOMMIT=F ', network_owner=>'rdfuser', network_name=>'mynetwork');
+        END IF;
+        --VIEW_INSERT_TEMPLATE_7
+          EXCEPTION
+          WHEN NO_DATA_FOUND THEN
+            v_dept_uri := 'saas:Dept' || '_' || :new.deptno;
+            insert into audit_table(id, type, attribute, old_value, new_value, update_time, updating_user_id) 
+                          values (audit_id_seq.nextval, 'Dept', 'insert', '', v_dept_uri, SYSTIMESTAMP, user);
+         -- Add new dept.
+            sem_apis.update_model(model_param_handler.get_model_name, 
+           'PREFIX saas: <http://SaaS.org/>
+            INSERT DATA { 
+                ' || v_dept_uri || ' a saas:Dept .
+                ' || v_dept_uri || ' saas:dept_id "' || v_dept_id || '" .
+                ' || v_dept_uri || ' saas:deptno "' || :new.deptno || '" .
+                ' || v_dept_uri || ' saas:dname "' || :new.dname || '" .
+                ' || v_dept_uri || ' saas:loc "' || :new.loc || '" .
+                ' || v_dept_uri || ' saas:award "' || :new.award || '" .
+                #VIEW_INSERT_TEMPLATE_9
+            }', options=>' AUTOCOMMIT=F ', network_owner=>'rdfuser', network_name=>'mynetwork');
+    END;
+--Insert more here
+END; 
+/
 CREATE OR REPLACE EDITIONABLE TRIGGER SaaS_DEPT_VIEW_TRIGGER_UPDATE 
      INSTEAD OF update ON SaaS_DEPT_VIEW
      FOR EACH ROW

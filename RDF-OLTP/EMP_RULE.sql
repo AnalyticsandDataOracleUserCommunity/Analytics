@@ -31,9 +31,9 @@ BEGIN
     sem_apis.update_model(model_param_handler.get_model_name, 
        'PREFIX saas: <http://SaaS.org/>
         DELETE { ?dept_uri saas:award ?award . }
-        INSERT { ?dept_uri saas:award ?eligable . }
+        INSERT { ?dept_uri saas:award ?eligible . }
         WHERE 
-        {   { select distinct ?dept_uri ?award ?eligable WHERE {
+        {   { select distinct ?dept_uri ?award ?eligible WHERE {
             # Get the dept for each emp.
             ?emp_uri  a               saas:Emp .
             ?emp_uri  saas:empDeptEVA ?dept_uri .
@@ -49,7 +49,7 @@ BEGIN
                     FILTER(?training = "")
               }
             }
-            BIND(CONCAT("Department ", ?deptno, " is eligable for     an award") AS ?eligable)
+            BIND(CONCAT("Department ", ?deptno, " is eligible for an award") AS ?eligible)
             } }
         }', options=>' AUTOCOMMIT=F ', network_owner=>'rdfuser', network_name=>'mynetwork') ;
 END;
